@@ -1,0 +1,15 @@
+Package: MiChip
+Version: 0.5.3
+Date: 2009-09-10
+Title: MiChip Parsing and Summarizing Functions
+Author: Jonathon Blake <blake@embl.de>
+Maintainer: Jonathon Blake <blake@embl.de>
+Depends: R (>= 2.3.0), Biobase
+Imports: Biobase
+Description: This package takes the MiChip miRNA microarray .grp 
+	scanner output files and parses these out, providing summary 
+	and plotting functions	to analyse MiChip hybridizations. A 
+	set of hybridizations is packaged into an ExpressionSet allowing 
+	it to be used by other	BioConductor packages.
+License: GPL(>=2)
+biocViews:Microarray, preprocessing

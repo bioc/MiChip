@@ -1,0 +1,196 @@
+%\VignetteIndexEntry{MiChip miRNA Microarray Processing}
+%\VignetteKeywords{Expression Analysis}
+%\VignettePackage{MiChip}
+
+\documentclass[11pt]{article}
+\usepackage[margin=2cm,nohead]{geometry}
+\usepackage{natbib}
+\usepackage{color}
+\definecolor{darkblue}{rgb}{0.0,0.0,0.75}
+\usepackage[%
+baseurl={http://www.bioconductor.org},%
+pdftitle={Processing MiChip Microarray Data},%
+pdfauthor={Jonathon Blake},%
+pdfkeywords={Bioconductor},%
+pagebackref,bookmarks,colorlinks,linkcolor=darkblue,citecolor=darkblue,%
+pagecolor=darkblue,raiselinks,plainpages,pdftex]{hyperref}
+
+\SweaveOpts{keep.source=TRUE,eps=FALSE,include=FALSE} 
+
+
+
+
+\begin{document}
+\title{MiChip}
+\author{Jonathon Blake}
+\maketitle
+\tableofcontents
+
+
+\section{Introduction}
+
+MiChip is a microarray platform using locked oligonucleotides for the analysis of 
+the expression of microRNAs in a variety of species \cite{Castoldi:etal:2008}. 
+The MiChip library provides a set of functions for loading data from several MiChip 
+hybridizations, flag correction, filtering and summarizing the data. The data is then
+packaged as a Bioconductor {\it ExpressionSet} object where it can easily be further 
+analyzed with the Bioconductor toolset {\it http://www.bioconductor.org/}.
+
+First load the library. 
+
+<<loadLibary>>=
+library(MiChip)
+@
+
+\section{Reading the Hybridization Files}
+
+MiChip is scanned as a single colour cy3 hybridization and the output is gridded using Genepix software.
+To load the data from a set of MiChip hybridization Genepix files into bioconductor, 
+use the {\it parseRawData() } method. 
+
+<<defaultRawData>>=
+datadir <-system.file("extdata", package="MiChip")
+defaultRawData <- parseRawData(datadir)
+@
+
+The defaults are current directory "." And the "gpr" file extension. Loading data from
+ a directory other than the current directory  requires sending the directory to the
+ method e.g. {\it otherDirectoryData <-parseRawData(datadir="/myDemoDir", pat ="gpr") }.
+
+All files in the directory with the matching extension will be parsed and combined into
+ an { \it ExpressionSet } containing all features on the chip with the background subtracted 
+intensity from the scanner and quality flags. All hybridizations in the directory should be
+ of the same type otherwise an error will be thrown. 
+
+\section{Removing Unwanted Rows and Correcting for Flags}
+
+Due to the spotting configuration of MiChip and the probes supplied in the Exiqon probe
+ library there are several data points which can be removed from the data set before
+ analysis. Some of the spots on the chip are empty, others contain various controls and 
+probes relating to microRNAs from different species possibly not relevant to the analysis
+ in at hand. To remove data from these points use the { \it removeUnwantedRows() } method.
+ This takes an array of strings and removes rows containing any of these strings in the gene
+ name annotation of the data.
+
+Remove all empty spots from data set
+
+<<noe>>=
+ noEmptiesDataSet <- removeUnwantedRows(defaultRawData, c("Empty"))
+@
+
+Use the helper method to produce the standard set of data rows for human MiChip experiments
+<<humanDataSet>>=
+humanDataSet <- standardRemoveRows(defaultRawData)
+@
+
+Flags for the MiChip hybridizations are 0 for passes and negative values for spots that are marked absent. 
+Data points with flag values less than zero are set to NA using the correctForFlags method.
+
+<<flagCorrectDataSet>>=
+ flagCorrectedDataSet <- correctForFlags(humanDataSet)
+@
+
+Positive but low intensities may lead to readings near background being taken as positive. 
+Therefore an intensity cutoff can be sent to the {\it correctForFlags() } to set all the intensities 
+under a set value to NA.
+
+<<flagCorrectedDataSet>>= 
+flagCorrectedDataSet <- correctForFlags(humanDataSet, intensityCutoff = 50)
+@
+
+\section{Summarizing Intensities}
+The MiChip probes are spotted in either duplicate or quadruplicate on the array. 
+The individual readings of the data can be combined to give a single intensity value. 
+The combined intensity is taken as the median of the individual intensities, omitting NAs.
+A minimum length for the acceptable number of present values is supplied to prevent features 
+with only a low number of positive calls being accepted. Summarized intensities where the 
+median absolute deviation is greater than the median intensity can be set to NA on the grounds of being too variable.
+This is done by setting the madAdjust argument to TRUE.
+
+
+<<summedData>>=
+summedData <- summarizeIntensitiesAsMedian(flagCorrectedDataSet,minSumlength = 0, madAdjust=FALSE)
+@
+
+\section{Plotting Functions}
+MiChip contains two functions for plotting intensity data, both are wrappers for standard plotting functions. 
+The data however produced is written to a file allowing intensity plots and box plots to be produced automatically. 
+
+
+<<plotIntensities, hide=TRUE>>=
+plotIntensitiesScatter(exprs(summedData), NULL, "MiChipDemX", "SummarizedScatter")
+@
+
+
+\begin{figure}
+\begin{center}
+\includegraphics{MiChipDemX_SummarizedScatter.jpg}
+
+\caption{Scatterplots of pairwise intensies per hybridization}
+\label{fig:scatterplots}
+\end{center}
+\end{figure}
+Figure~\ref{fig:scatterplots} shows scatter plots of the intensites of the hybrdizations.
+
+<<boxplotSummed>>=
+ boxplotData(exprs(summedData), "MiChipDemX", "Summarized")
+@
+
+
+
+
+\begin{figure}
+\begin{center}
+\includegraphics{MiChipDemX_Summarized.jpg}
+\caption{Boxplot of Summarized Intensity Data}
+\label{fig:boxplots}
+\end{center}
+\end{figure}
+Figure~\ref{fig:boxplots} shows boxplots of the summarized intensity data.
+
+\section{Normalization}
+The major advantage of the MiChip library is to parse MiChip hybridization data sets into an {\it ExpressionSet} so that existing methods for normalization and hybridization within Bioconductor can be used. Median normalization per chip is implemented in the MiChip. 
+
+<<mednormedData>>= 
+mednormedData <- normalizePerChipMedian(summedData)
+@
+
+\section{Writing Output Files}
+The {\it outputAnnotatedDataMatrix()} method combines the annotation and expression data from an {\it ExpressionSet}. This produces a tab delimited file containing data annotation in the left hand columns and expression data in the right for distribution or analysis with other applications.
+
+
+<<outputAnnot>>= 
+outputAnnotatedDataMatrix(mednormedData, "MiChipDemo", "medNormedIntensity",  "exprs")
+@
+
+\section{Combination of processes}
+The MiChip library has been developed to automate and simplify the analysis of MiChip hybridizations and provide a basis for incorporating the MiChip into analysis pipelines. A worked example of the analysis from file parsing to median normalization of the expression data is given in the workedExampleMedianNormalization method.
+
+<<myNormedEset>>=
+datadir <-system.file("extdata", package="MiChip")
+ myNormedEset <- workedExampleMedianNormalize("NormedDemo", intensityCutoff = 50,datadir)
+@
+
+\begin{thebibliography}{2}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+
+\bibitem[Castoldi et~al.(2008)Castoldi, Schmidt, Benes, Hentze, and
+  Muckenthaler]{Castoldi:etal:2008}
+M.~Castoldi, S.~Schmidt, V.~Benes, M.~W. Hentze, and M.~U. Muckenthaler.
+\newblock michip: an array-based method for microrna expression profiling using
+  locked nucleic acid capture probes.
+\newblock {\em Nature Protocols}, 3\penalty0 (2):\penalty0 321--329, 2008.
+
+\bibitem[Castoldi et~al.(2006)Castoldi, Schmidt, Benes, Noerholm, Kulozik,
+  Hentze, and Muckenthaler]{Castoldi:etal:2006}
+M.~Castoldi, S.~Schmidt, V.~Benes, M~Noerholm, A.~E. Kulozik, M.~W. Hentze, and
+  M.~U. Muckenthaler.
+\newblock A sensitive array for microrna expression profiling (michip) based on
+  locked nucleic acids (lna).
+\newblock {\em RNA}, 12\penalty0 (5):\penalty0 913--920, 2006.
+
+\end{thebibliography}
+
+
+
+\end{document}

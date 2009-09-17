@@ -1,0 +1,22 @@
+import(Biobase)
+
+############################################
+#Exporting All Public Methods from MiChip
+############################################
+export(
+	parseRawData,
+	outputAnnotatedDataMatrix, 
+	returnAnnotatedDataMatrix,
+	removeUnwantedRows,
+	standardRemoveRows,
+	myForgivingMedian,
+	setIntensityCutoff,
+	correctForFlags,
+	summarizeIntensitiesAsMedian,
+	normalizePerChipMedian,
+	boxplotData,
+	boxplotDataNoFile,
+	plotIntensitiesScatter, 
+	workedExampleMedianNormalize,
+	workedExampleNotNormalizedData
+) 
