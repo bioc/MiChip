@@ -11,5 +11,5 @@ Description: This package takes the MiChip miRNA microarray .grp
 	and plotting functions	to analyse MiChip hybridizations. A 
 	set of hybridizations is packaged into an ExpressionSet allowing 
 	it to be used by other	BioConductor packages.
-License: GPL(>=2)
+License: GPL (>= 2)
 biocViews:Microarray, preprocessing
